@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monst UI Guide</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <button id="menu-btn" type="button" aria-controls="drawer" aria-expanded="false">☰ Sheets</button>
+  <nav id="crumbs" aria-label="Breadcrumb"></nav>
+  <span class="spacer"></span>
+  <div class="zoom" role="group" aria-label="Zoom">
+    <button id="fit" type="button" aria-pressed="true">Fit</button>
+    <button id="full" type="button" aria-pressed="false">100%</button>
+  </div>
+</header>
+
+<div id="backdrop" hidden></div>
+<aside id="drawer" aria-label="All sheets" hidden>
+  <input id="search" type="search" placeholder="Jump to… (e.g. Monspot, Claim)" autocomplete="off" aria-label="Search sheets and items">
+  <div id="list"></div>
+  <a id="slides" href="MonstUI_Slides.pptx" download>Download all sheets as slides (.pptx)</a>
+</aside>
+
+<main id="view">
+  <p id="loading">Loading…</p>
+  <div id="stage">
+    <img id="sheet" alt="">
+    <svg id="hot" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
+  </div>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
