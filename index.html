@@ -3,36 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Monst UI Guide</title>
+<title>English Monst UI Guide</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
-  <button id="menu-btn" type="button" aria-controls="drawer" aria-expanded="false">☰ Sheets</button>
+  <button id="menu-btn" type="button" aria-controls="drawer" aria-expanded="false">☰ Pages</button>
   <nav id="crumbs" aria-label="Breadcrumb"></nav>
-  <span class="spacer"></span>
-  <div class="zoom" role="group" aria-label="Zoom">
-    <button id="fit" type="button" aria-pressed="true">Fit</button>
-    <button id="full" type="button" aria-pressed="false">100%</button>
+  <div id="tools">
+    <span id="ver"></span>
+    <button id="taps-btn" type="button" aria-pressed="false">Show tap areas</button>
   </div>
 </header>
 
 <div id="backdrop" hidden></div>
-<aside id="drawer" aria-label="All sheets" hidden>
-  <input id="search" type="search" placeholder="Jump to… (e.g. Monspot, Claim)" autocomplete="off" aria-label="Search sheets and items">
+<aside id="drawer" aria-label="All pages" hidden>
+  <input id="search" type="search" placeholder="Jump to… (e.g. Backup, Quest)" autocomplete="off" aria-label="Search pages and items">
   <div id="list"></div>
-  <a id="slides" href="MonstUI_Slides.pptx" download>Download all sheets as slides (.pptx)</a>
 </aside>
 
-<main id="view">
-  <p id="loading">Loading…</p>
-  <div id="stage">
-    <img id="sheet" alt="">
-    <svg id="hot" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
-  </div>
+<main id="page">
+  <div id="shot"><svg id="svg" xmlns="http://www.w3.org/2000/svg" role="img"></svg></div>
+  <section id="panel" aria-label="Explanations"></section>
 </main>
 
-<script src="data.js"></script>
+<script src="pages.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
