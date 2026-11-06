@@ -60,6 +60,7 @@
     all.append(s('rect', { x: 0, y: 0, width: SHOT_W, height: SHOT_H, fill: '#fff' }));
     const fill = (sh, c) => { const k = shape(sh, ''); k.setAttribute('fill', c); return k; };
     for (const sh of page.lit || []) all.append(fill(sh, '#000'));
+    for (const t of page.taps || []) { all.append(fill(t.shape, '#000')); spot.append(fill(t.shape, '#fff')); }   // unnumbered buttons are lit too
     for (const it of page.items) for (const sh of it.lit) { all.append(fill(sh, '#000')); spot.append(fill(sh, '#fff')); }
     for (const it of page.items) for (const sh of it.lit) {   // drawn last, so a spotlighted item is never covered by a neighbor
       const k = fill(sh, '#000'); k.setAttribute('data-n', it.n); k.style.display = 'none'; spot.append(k);
