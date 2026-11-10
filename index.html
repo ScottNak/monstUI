@@ -22,8 +22,15 @@
   <div id="list"></div>
 </aside>
 
+<div id="overlay" hidden>
+  <div id="ov-box" role="dialog" aria-modal="true" aria-labelledby="ov-title">
+    <div id="ov-head"><h2 id="ov-title"></h2><button id="ov-close" type="button">Close</button></div>
+    <div id="ov-body"></div>
+  </div>
+</div>
+
 <main id="page">
-  <div id="shot"><svg id="svg" xmlns="http://www.w3.org/2000/svg" role="img"></svg></div>
+  <div id="shot"><svg id="popup-bg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 2825" preserveAspectRatio="none" hidden></svg><div id="toggle" role="group" aria-label="Version" hidden></div><svg id="svg" xmlns="http://www.w3.org/2000/svg" role="img"></svg></div>
   <section id="panel" aria-label="Explanations"></section>
 </main>
 

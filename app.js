@@ -1,10 +1,10 @@
 // Page viewer. #<page> opens a page, #<page>/<n> also selects item n. All content comes from pages.js.
 (() => {
-  const SITE = window.SITE, PAGES = SITE.pages;
+  const SITE = window.SITE, PAGES = SITE.pages, TABBAR = SITE.tabbar;
   const NS = 'http://www.w3.org/2000/svg', SHOT_W = 1440, SHOT_H = 2825, R = 42;   // callout radius at 1440px, as on the sheets
   const $ = id => document.getElementById(id);
   const svg = $('svg'), panel = $('panel'), drawer = $('drawer'), backdrop = $('backdrop'), menuBtn = $('menu-btn'), search = $('search'), list = $('list');
-  const tapsBtn = $('taps-btn'), ver = $('ver');
+  const tapsBtn = $('taps-btn'), ver = $('ver'), overlay = $('overlay');
   const params = new URLSearchParams(location.search);
   if (params.has('slide')) document.body.classList.add('slide');
   if (params.has('outline')) svg.classList.add('outline');
@@ -44,9 +44,22 @@
     const hdr = document.querySelector('header').offsetHeight, phone = innerWidth <= 760;
     const availH = innerHeight - hdr - (phone ? 16 : 28);
     const availW = phone ? innerWidth : innerWidth - 32 - 20 - 300;
-    const k = Math.min(availH / h, availW / w);
-    svg.setAttribute('width', Math.floor(w * k)); svg.setAttribute('height', Math.floor(h * k));
+    const box = $('shot'), popup = !!page.view;
+    box.classList.toggle('popup', popup);
+    if (popup) {
+      // a popup (cropped page) sits at its in-game spot on top of its parent's full screenshot, which is dimmed behind it
+      const k = Math.min(availH / SHOT_H, availW / SHOT_W), bw = Math.floor(SHOT_W * k), bh = Math.floor(SHOT_H * k);
+      Object.assign(box.style, { width: bw + 'px', height: bh + 'px' });   // the backdrop (see renderShot) fills the box
+      Object.assign(svg.style, { left: Math.round(x0 * k) + 'px', top: Math.round(y0 * k) + 'px' });
+      svg.setAttribute('width', Math.round(w * k)); svg.setAttribute('height', Math.round(h * k));
+    } else {
+      box.style.width = box.style.height = '';
+      svg.style.left = svg.style.top = '';
+      const k = Math.min(availH / h, availW / w);
+      svg.setAttribute('width', Math.floor(w * k)); svg.setAttribute('height', Math.floor(h * k));
+    }
   }
+
   addEventListener('resize', () => page && size());
 
   // ---------- screenshot ----------
@@ -55,11 +68,14 @@
     const [x0, y0, x1, y1] = view();
     svg.setAttribute('viewBox', `${x0} ${y0} ${x1 - x0} ${y1 - y0}`);
     svg.setAttribute('aria-label', page.title + ' screenshot');
-    // m-lit: everything dark except the lit shapes. m-spot: only the other items' shapes, to darken them while one is spotlighted
+    // m-lit: everything dark except the lit shapes. m-spot: every lit shape but the spotlighted item's, to darken them while one is spotlighted
     const defs = s('defs'), all = s('mask', { id: 'm-lit' }), spot = s('mask', { id: 'm-spot' });
     all.append(s('rect', { x: 0, y: 0, width: SHOT_W, height: SHOT_H, fill: '#fff' }));
+    const dims = page.dim !== false;   // dim: false leaves the screen undimmed; a spotlighted item still darkens everything else
+    if (!dims) spot.append(s('rect', { x: 0, y: 0, width: SHOT_W, height: SHOT_H, fill: '#fff' }));
     const fill = (sh, c) => { const k = shape(sh, ''); k.setAttribute('fill', c); return k; };
-    for (const sh of page.lit || []) all.append(fill(sh, '#000'));
+    const bar = [{ r: [0, TABBAR.top, SHOT_W, SHOT_H, 0] }, ...TABBAR.badges];   // the tab bar is always lit
+    for (const sh of [...(page.lit || []), ...bar]) { all.append(fill(sh, '#000')); spot.append(fill(sh, '#fff')); }   // a spotlighted item dims these too
     for (const t of page.taps || []) { all.append(fill(t.shape, '#000')); spot.append(fill(t.shape, '#fff')); }   // unnumbered buttons are lit too
     for (const it of page.items) for (const sh of it.lit) { all.append(fill(sh, '#000')); spot.append(fill(sh, '#fff')); }
     for (const it of page.items) for (const sh of it.lit) {   // drawn last, so a spotlighted item is never covered by a neighbor
@@ -67,7 +83,7 @@
     }
     defs.append(all, spot); svg.append(defs);
     svg.append(s('image', { href: page.shot, x: 0, y: 0, width: SHOT_W, height: SHOT_H }));
-    svg.append(s('rect', { x: 0, y: 0, width: SHOT_W, height: SHOT_H, class: 'dim', mask: 'url(#m-lit)' }));
+    if (dims) svg.append(s('rect', { x: 0, y: 0, width: SHOT_W, height: SHOT_H, class: 'dim', mask: 'url(#m-lit)' }));
     const sp = s('rect', { x: 0, y: 0, width: SHOT_W, height: SHOT_H, class: 'dim spot', mask: 'url(#m-spot)', id: 'spot' });
     sp.style.opacity = 0; svg.append(sp);
 
@@ -86,10 +102,24 @@
     taps.sort((a, b) => Math.max(...b.shapes.map(area)) - Math.max(...a.shapes.map(area)));
     for (const tp of taps) {
       const a = s('a', { href: tp.to ? '#' + tp.to : `#${id}/${tp.it.n}`, 'aria-label': tp.to ? 'Open ' + PAGES[tp.to].title : tp.it.name });
-      for (const sh of tp.shapes) a.append(shape(sh, 'tap' + (tp.to ? ' link' : '')));
-      if (!tp.to) a.addEventListener('click', ev => { ev.preventDefault(); select(tp.it.n, true); });
+      for (const sh of tp.shapes) a.append(shape(sh, 'tap' + (tp.to || tp.it.overlay ? ' link' : '')));
+      if (!tp.to) a.addEventListener('click', ev => { ev.preventDefault(); select(tp.it.n, true); if (tp.it.overlay) showOverlay(tp.it); });
       svg.append(a);
     }
+    const tabs = (into) => { for (const t of TABBAR.tabs) if (t.to !== id) {
+      const a = s('a', { href: '#' + t.to, 'aria-label': t.label + ' tab' }); a.append(shape({ r: t.r }, 'tap link')); into.append(a);
+    } };
+    // a popup sits on its parent's screenshot, dimmed except the tab bar, which stays tappable; any other page gets the tabs on its own
+    const back = $('popup-bg'); back.replaceChildren(); back.toggleAttribute('hidden', !page.view);   // an svg has no .hidden property
+    if (page.view) {
+      const m = s('mask', { id: 'm-back' });
+      m.append(s('rect', { x: 0, y: 0, width: SHOT_W, height: SHOT_H, fill: '#fff' }));
+      for (const sh of bar) m.append(fill(sh, '#000'));
+      const d = s('defs'); d.append(m);
+      back.append(d, s('image', { href: PAGES[page.parent].shot, x: 0, y: 0, width: SHOT_W, height: SHOT_H, preserveAspectRatio: 'none' }),
+        s('rect', { x: 0, y: 0, width: SHOT_W, height: SHOT_H, fill: '#000', opacity: .6, mask: 'url(#m-back)' }));
+      tabs(back);
+    } else tabs(svg);
     for (const t of page.taps || []) {
       const to = t.back ? page.parent : t.to;
       const a = s('a', { href: '#' + to, 'aria-label': t.label + ' (' + PAGES[to].title + ')' });
@@ -120,10 +150,11 @@
       const a = el('article', { class: 'item', id: 'i-' + it.n, tabindex: 0 });
       const h = el('h2', {}, it.name);
       if (it.to) h.append(el('a', { class: 'open', href: '#' + it.to, 'aria-label': 'Open ' + PAGES[it.to].title }, 'Open'));
+      if (it.overlay) { const label = it.button || 'Open', b = el('button', { class: 'open', type: 'button', 'aria-label': label + ' ' + it.overlay.title }, label); b.addEventListener('click', () => { select(it.n, false); showOverlay(it); }); h.append(b); }
       a.append(el('span', { class: 'n' }, String(it.n)), h);
       if (it.text) a.append(el('p', {}, it.text));
-      a.addEventListener('click', ev => { if (!ev.target.closest('a')) select(it.n, false); });
-      a.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.target.closest('a')) select(it.n, false); });
+      a.addEventListener('click', ev => { if (!ev.target.closest('a, button')) select(it.n, false); });
+      a.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.target.closest('a, button')) select(it.n, false); });
       a.addEventListener('mouseenter', () => spotlight(it.n));
       a.addEventListener('mouseleave', () => spotlight(selected));
       panel.append(a);
@@ -159,11 +190,17 @@
     });
   }
 
+  // region-style switch between versions of one screen (page.toggle)
+  function renderToggle() {
+    const box = $('toggle'); box.replaceChildren(); box.hidden = !page.toggle;
+    for (const [label, to] of page.toggle || []) box.append(el('a', to === id ? { href: '#' + to, 'aria-current': 'page' } : { href: '#' + to }, label));
+  }
+
   function open(pid, n) {
     if (pid !== id) {
       id = pid; page = PAGES[pid]; selected = null;
       ver.textContent = page.ver ? 'Ver. ' + page.ver : '';
-      renderCrumbs(); renderShot(); renderPanel(); size(); renderList();
+      renderCrumbs(); renderToggle(); renderShot(); renderPanel(); size(); renderList();
       if (document.body.classList.contains('slide')) fitSlide();
       scrollTo(0, 0);
     }
@@ -175,6 +212,15 @@
     panel.classList.remove('cols2');
     if (panel.getBoundingClientRect().bottom > innerHeight - 12) panel.classList.add('cols2');
   }
+
+  // ---------- overlay: an item's info box shown over the page ----------
+  function showOverlay(it) {
+    $('ov-title').textContent = it.overlay.title; $('ov-body').innerHTML = it.overlay.html;
+    overlay.hidden = false; $('ov-box').scrollTop = 0; $('ov-close').focus({ preventScroll: true });
+  }
+  function hideOverlay() { if (!overlay.hidden) overlay.hidden = true; }
+  $('ov-close').addEventListener('click', hideOverlay);
+  overlay.addEventListener('click', ev => { if (ev.target === overlay) hideOverlay(); });
 
   // ---------- drawer ----------
   function pageLink(p) {
@@ -218,7 +264,7 @@
   }
   menuBtn.addEventListener('click', () => setDrawer(drawer.hidden));
   backdrop.addEventListener('click', () => setDrawer(false));
-  addEventListener('keydown', ev => { if (ev.key === 'Escape' && !drawer.hidden) setDrawer(false); });
+  addEventListener('keydown', ev => { if (ev.key !== 'Escape') return; if (!overlay.hidden) hideOverlay(); else if (!drawer.hidden) setDrawer(false); });
   search.addEventListener('input', renderList);
   list.addEventListener('click', ev => { if (ev.target.closest('a')) setDrawer(false); });
 
@@ -235,11 +281,11 @@
 
   // tapping anywhere that isn't an element, a number or an explanation clears the selection
   document.addEventListener('click', ev => {
-    if (selected && !ev.target.closest('a, .num, .item, header, #drawer')) select(null, false);
+    if (selected && !ev.target.closest('a, .num, .item, header, #drawer, #overlay')) select(null, false);
   });
 
   // ---------- routing ----------
-  function route() { const { pid, n } = parseHash(); open(pid, n); }
+  function route() { hideOverlay(); const { pid, n } = parseHash(); open(pid, n); }
   addEventListener('hashchange', route);
   route();
 })();
